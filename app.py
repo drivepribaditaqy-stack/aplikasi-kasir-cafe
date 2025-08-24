@@ -3,10 +3,119 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, date
 import plotly.graph_objects as go
+import os
 
 # --- KONFIGURASI DAN INISIALISASI ---
 DB = "pos.db"
 st.set_page_config(layout="wide", page_title="Cafe POS App")
+
+# =====================================================================
+# --- FUNGSI UNTUK MENGISI DATA AWAL ---
+# =====================================================================
+def insert_initial_data(conn):
+    """
+    Fungsi ini akan memasukkan data awal dari database lama Anda
+    ke dalam database baru jika database tersebut kosong.
+    """
+    c = conn.cursor()
+
+    # Cek apakah tabel 'products' sudah ada isinya atau belum
+    c.execute("SELECT COUNT(*) FROM products")
+    count = c.fetchone()[0]
+    
+    # Jika kosong (count == 0), maka masukkan semua data awal
+    if count == 0:
+        st.info("Database kosong, mengisi dengan data awal...")
+        
+        try:
+            # Data untuk tabel 'ingredients'
+            ingredients_data = [
+                (1, 'Trieste Blueberry', 'gr', 166.67, 1000, 1000, 166667),
+                (2, 'Trieste Tiramisu', 'gr', 166.67, 1000, 1000, 166667),
+                (3, 'Denali Hazelnut', 'gr', 130.0, 1000, 1000, 130000),
+                (4, 'Denali Caramel', 'gr', 130.0, 1000, 1000, 130000),
+                (5, 'Denali Salted Caramel', 'gr', 130.0, 1000, 1000, 130000),
+                (6, 'Denali Blue Citrus', 'gr', 130.0, 1000, 1000, 130000),
+                (7, 'ABC Squash Lychee', 'gr', 20.0, 1000, 1000, 20000),
+                (8, 'ABC Squash Florida Orange', 'gr', 20.0, 1000, 1000, 20000),
+                (9, 'Marjan Squash Mango', 'gr', 15.0, 1000, 1000, 15000),
+                (10, 'Marjan Boudoin Grenadine', 'gr', 25.0, 1000, 1000, 25000),
+                (11, 'Marjan Boudoin Moka', 'gr', 25.0, 1000, 1000, 25000),
+                (12, 'Marjan Boudoin Vanilla', 'gr', 25.0, 1000, 1000, 25000),
+                (13, 'Marjan Boudoin Lemon', 'gr', 25.0, 1000, 1000, 25000),
+                (14, 'Marjan Boudoin Melon', 'gr', 25.0, 1000, 1000, 25000),
+                (15, 'Marjan Boudoin Markisa', 'gr', 25.0, 1000, 1000, 25000),
+                (16, 'Air Galon', 'ml', 0.3, 19000, 19000, 6000),
+                (17, 'Kopoe Kopoe Gula Aren', 'gr', 50.0, 1000, 1000, 50000),
+                (18, 'Marjan Squash Mangga', 'gr', 15.0, 1000, 1000, 15000),
+                (19, 'Marjan Boudoin Strawberry', 'gr', 25.0, 1000, 1000, 25000),
+                (20, 'Sprite Zero', 'gr', 10.0, 1000, 1000, 10000),
+                (21, 'Creamer', 'gr', 80.0, 1000, 1000, 80000),
+                (22, 'SKM', 'gr', 25.0, 1000, 1000, 25000),
+                (23, 'UHT', 'gr', 20.0, 1000, 1000, 20000),
+                (24, 'Coffee Beans Samara', 'gr', 100.0, 1000, 1000, 100000)
+            ]
+            c.executemany("INSERT OR IGNORE INTO ingredients (id, name, unit, cost_per_unit, stock, pack_weight, pack_price) VALUES (?, ?, ?, ?, ?, ?, ?)", ingredients_data)
+
+            # Data untuk tabel 'products'
+            products_data = [
+                (1, 'Espresso', 10000), (2, 'Americano', 12000), (3, 'Lemon Americano', 15000),
+                (4, 'Orange Americano', 15000), (5, 'Cococof (BN Signature)', 20000), (6, 'Coffee Latte', 18000),
+                (7, 'Cappucino', 18000), (8, 'Spanish Latte', 20000), (9, 'Caramel Latte', 20000),
+                (10, 'VanillaLatte', 20000), (11, 'Hazelnut Latte', 20000), (12, 'Butterscotch Latte', 22000),
+                (13, 'Tiramissu Latte', 20000), (14, 'Mocca Latte', 20000), (15, 'Coffee Chocolate', 22000),
+                (16, 'Taro Coffee Latte', 22000), (17, 'Coffee Gula Aren', 22000), (18, 'Lychee Coffe', 20000),
+                (19, 'Markisa Coffee', 20000), (20, 'Raspberry Latte', 20000), (21, 'Strawberry Latte', 20000),
+                (22, 'Manggo Latte', 20000), (23, 'Bubblegum Latte', 20000), (24, 'Lemon Tea', 10000),
+                (25, 'Lychee Tea', 12000), (26, 'Milk Tea', 15000), (27, 'Green Tea', 15000),
+                (28, 'Thai Tea', 15000), (29, 'Melon Susu', 15000), (30, 'Manggo Susu', 18000),
+                (31, 'Mocca Susu', 18000), (32, 'Orange Susu', 18000), (33, 'Taro Susu', 18000),
+                (34, 'Coklat Susu', 18000), (35, 'Vanilla Susu', 18000), (36, 'Strawberry Susu', 18000),
+                (37, 'Matcha Susu', 20000), (38, 'Blueberry Susu', 20000), (39, 'Bubblegum Susu', 20000),
+                (40, 'Raspberry Susu', 20000), (41, 'Grenadine Susu', 20000), (42, 'Banana Susu', 20000),
+                (43, 'Melon Soda', 12000), (44, 'Manggo Soda', 15000), (45, 'Orange Soda', 15000),
+                (46, 'Strawberry Soda', 15000), (47, 'Bluesky Soda', 15000), (48, 'Banana Soda', 20000),
+                (49, 'Grenadine Soda', 15000), (50, 'Blueberry Soda', 20000), (51, 'Coffee Bear', 20000),
+                (52, 'Mocca Soda', 20000), (53, 'Raspberry Soda', 20000), (54, 'Coffe Soda', 15000),
+                (55, 'Strawberry Coffe Soda', 20000), (56, 'Melon Bluesky', 20000), (57, 'Blue Manggo Soda', 22000),
+                (58, 'Double Shoot ADD On', 5000), (59, 'Yakult ADD On', 3000), (60, 'Mineral Water', 5000),
+                (61, 'Mineral Water Gelas', 1000)
+            ]
+            c.executemany("INSERT OR IGNORE INTO products (id, name, price) VALUES (?, ?, ?)", products_data)
+
+            # Data untuk tabel 'employees'
+            employees_data = [(1, 'Taza', 10000)]
+            c.executemany("INSERT OR IGNORE INTO employees (id, name, hourly_wage) VALUES (?, ?, ?)", employees_data)
+            
+            # Data untuk tabel 'operational_costs'
+            operational_costs_data = [(1, 'Listrik', 500000, '2025-08-24')]
+            c.executemany("INSERT OR IGNORE INTO operational_costs (id, description, amount, date) VALUES (?, ?, ?, ?)", operational_costs_data)
+
+            # Data untuk tabel 'other_expenses'
+            other_expenses_data = [(1, 'Jajan Bakso', 18000, '2025-08-24')]
+            c.executemany("INSERT OR IGNORE INTO other_expenses (id, description, amount, date) VALUES (?, ?, ?, ?)", other_expenses_data)
+            
+            # Data untuk tabel 'attendance'
+            attendance_data = [
+                (1, 1, '2025-08-24 05:59:58', None), (2, 1, '2025-08-24 06:00:21', None),
+                (3, 1, '2025-08-24 06:03:00', None), (4, 1, '2025-08-24 06:03:07', None),
+                (5, 1, '2025-08-24 06:19:06', None), (6, 1, '2025-08-24 06:19:20', None),
+                (7, 1, '2025-08-24 19:06:27', None), (8, 1, '2025-08-24 19:09:25', None),
+                (9, 1, '2025-08-24 19:09:56', None), (10, 1, '2025-08-24 19:10:00', None),
+                (11, 1, '2025-08-24 19:10:04', None),
+                (12, 1, '2025-08-24 19:02:36', '2025-08-25 01:02:45'),
+                (13, 1, '2025-08-24 06:32:44', '2025-08-24 06:32:47'),
+                (14, 1, '2025-08-24 06:45:23', '2025-08-24 06:45:30'),
+                (15, 1, '2025-08-24 19:21:00', '2025-08-24 22:21:00')
+            ]
+            c.executemany("INSERT OR IGNORE INTO attendance (id, employee_id, check_in, check_out) VALUES (?, ?, ?, ?)", attendance_data)
+
+            conn.commit()
+            st.success("Data awal berhasil dimuat ke database.")
+            st.rerun()
+            
+        except sqlite3.Error as e:
+            st.error(f"Terjadi error saat memasukkan data awal: {e}")
 
 # =====================================================================
 # --- BAGIAN LOGIN ---
@@ -16,56 +125,42 @@ def check_login():
     """
     Menampilkan form login dan menjalankan aplikasi utama jika login berhasil.
     """
-
-    # Cek apakah pengguna sudah login atau belum dari session_state
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
 
-    # Jika sudah login, tampilkan aplikasi utama
     if st.session_state.logged_in:
-        # Tambahkan tombol logout di sidebar
         st.sidebar.success(f"Welcome, {st.session_state.username}!")
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.username = ""
-            st.rerun() # Muat ulang halaman untuk kembali ke form login
-        
-        # Panggil fungsi untuk menjalankan aplikasi utama
+            st.rerun()
         run_main_app()
-
-    # Jika belum login, tampilkan form login
     else:
         st.title("🔐 Login - Aplikasi Kasir Cafe")
         st.write("---")
-
-        # --- Kredensial Login ---
-        # Untuk penggunaan lokal, username & password bisa ditaruh di sini.
         VALID_USERNAME = "admin"
         VALID_PASSWORD = "123"
-
-        # Buat form login
         with st.form("login_form"):
             username = st.text_input("Username")
             password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login")
-
             if submitted:
                 if username == VALID_USERNAME and password == VALID_PASSWORD:
-                    # Jika benar, ubah status login di session state
                     st.session_state.logged_in = True
                     st.session_state.username = username
-                    st.rerun() # Muat ulang halaman untuk menampilkan aplikasi
+                    st.rerun()
                 else:
                     st.error("Username atau password salah!")
 
 # =====================================================================
 # --- APLIKASI UTAMA ---
-# Seluruh kode asli Anda dipindahkan ke dalam fungsi ini
 # =====================================================================
 
 def run_main_app():
-    # Fungsi untuk inisialisasi database
     def init_db():
+        """
+        Membuat tabel jika belum ada dan memanggil fungsi untuk mengisi data awal.
+        """
         conn = sqlite3.connect(DB)
         c = conn.cursor()
         c.execute("""CREATE TABLE IF NOT EXISTS ingredients (
@@ -84,12 +179,14 @@ def run_main_app():
             id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER, check_in TEXT, check_out TEXT
         )""")
         conn.commit()
+        
+        # Panggil fungsi untuk mengisi data awal
+        insert_initial_data(conn)
+        
         conn.close()
 
-    # Panggil inisialisasi DB di awal
     init_db()
 
-    # Fungsi helper untuk eksekusi query
     def run_query(query, params=()):
         conn = sqlite3.connect(DB)
         c = conn.cursor()
@@ -97,13 +194,13 @@ def run_main_app():
         conn.commit()
         conn.close()
 
-    # Fungsi untuk mendapatkan data sebagai DataFrame
     def get_df(query, params=()):
         conn = sqlite3.connect(DB)
         df = pd.read_sql_query(query, conn, params=params)
         conn.close()
         return df
 
+    # --- (Sisa kode Anda dari sini ke bawah tetap sama persis) ---
     # --- FUNGSI-FUNGSI MANAJEMEN DATA ---
     def add_ingredient(name, unit, cost, stock, pack_weight, pack_price):
         run_query("INSERT INTO ingredients (name, unit, cost_per_unit, stock, pack_weight, pack_price) VALUES (?, ?, ?, ?, ?, ?)", (name, unit, cost, stock, pack_weight, pack_price))
@@ -133,7 +230,6 @@ def run_main_app():
         today = date.today().strftime("%Y-%m-%d")
         run_query("INSERT INTO sales (product_id, qty, date) VALUES (?, ?, ?)", (product_id, qty, today))
         
-        # Kurangi stok bahan sesuai resep
         recipe_df = get_df("SELECT ingredient_id, qty_per_unit FROM recipes WHERE product_id=?", params=(product_id,))
         for _, row in recipe_df.iterrows():
             run_query("UPDATE ingredients SET stock = stock - ? WHERE id=?", (row['qty_per_unit'] * qty, row['ingredient_id']))
@@ -157,7 +253,6 @@ def run_main_app():
 
     def update_attendance(att_id, check_in_str, check_out_str):
         try:
-            # Validasi format datetime
             datetime.strptime(check_in_str, '%Y-%m-%d %H:%M:%S')
             if check_out_str:
                 datetime.strptime(check_out_str, '%Y-%m-%d %H:%M:%S')
@@ -228,7 +323,7 @@ def run_main_app():
                         for item, qty in st.session_state.cart.items():
                             record_sale(product_ids[item], qty)
                         st.success("Pesanan berhasil diproses! Stok bahan telah diperbarui.")
-                        st.session_state.cart = {} # Kosongkan keranjang
+                        st.session_state.cart = {}
                         st.balloons()
                         st.rerun()
 
@@ -236,7 +331,7 @@ def run_main_app():
                         st.session_state.cart = {}
                         st.rerun()
 
-    # --- HALAMAN MANAJEMEN STOK ---
+    # --- (Sisa UI Anda juga tetap sama) ---
     elif menu == "📦 Manajemen Stok":
         st.title("📦 Manajemen Stok Bahan Baku")
         df = get_df("SELECT * FROM ingredients")
@@ -276,7 +371,6 @@ def run_main_app():
                 st.warning("Bahan telah dihapus.")
                 st.rerun()
 
-    # --- HALAMAN MANAJEMEN PRODUK ---
     elif menu == "🍽️ Manajemen Produk":
         st.title("🍽️ Manajemen Produk & Resep")
         products_df = get_df("SELECT * FROM products")
@@ -336,7 +430,6 @@ def run_main_app():
             else:
                 st.warning("Tambahkan produk dan bahan baku terlebih dahulu untuk bisa mengatur resep.")
 
-    # --- HALAMAN LAPORAN ---
     elif menu == "📈 Laporan":
         st.title("📈 Laporan Penjualan")
         
@@ -355,7 +448,6 @@ def run_main_app():
         with col2:
             end_date = st.date_input("Tanggal Akhir", value=date.today())
 
-        # Filter dataframe berdasarkan tanggal
         sales_df['date'] = pd.to_datetime(sales_df['date']).dt.date
         filtered_df = sales_df[(sales_df['date'] >= start_date) & (sales_df['date'] <= end_date)]
 
@@ -372,22 +464,18 @@ def run_main_app():
             
             st.dataframe(filtered_df.style.format({'price': 'Rp {:,.2f}', 'total_revenue': 'Rp {:,.2f}'}), use_container_width=True)
 
-            # --- Grafik ---
             st.subheader("Visualisasi Data")
             
-            # Grafik Penjualan per Produk
             sales_by_product = filtered_df.groupby('product_name')['total_revenue'].sum().sort_values(ascending=False)
             fig_prod = go.Figure(data=[go.Bar(x=sales_by_product.index, y=sales_by_product.values)])
             fig_prod.update_layout(title_text='Pendapatan per Produk', xaxis_title='Produk', yaxis_title='Total Pendapatan (Rp)')
             st.plotly_chart(fig_prod, use_container_width=True)
             
-            # Grafik Penjualan Harian
             sales_by_date = filtered_df.groupby('date')['total_revenue'].sum()
             fig_date = go.Figure(data=[go.Scatter(x=sales_by_date.index, y=sales_by_date.values, mode='lines+markers')])
             fig_date.update_layout(title_text='Tren Pendapatan Harian', xaxis_title='Tanggal', yaxis_title='Total Pendapatan (Rp)')
             st.plotly_chart(fig_date, use_container_width=True)
 
-    # --- HALAMAN MANAJEMEN KARYAWAN ---
     elif menu == "👨‍💼 Manajemen Karyawan":
         st.title("👨‍💼 Manajemen Data Karyawan")
         df_emp = get_df("SELECT * FROM employees")
@@ -419,7 +507,6 @@ def run_main_app():
                 st.warning("Data karyawan telah dihapus.")
                 st.rerun()
 
-    # --- HALAMAN RIWAYAT ABSENSI ---
     elif menu == "🧾 Riwayat Absensi":
         st.title("🧾 Absensi Karyawan")
         
@@ -440,7 +527,6 @@ def run_main_app():
 
             with col2:
                 st.subheader("Absen Pulang (Check-out)")
-                # Cari karyawan yang sudah check-in tapi belum check-out
                 att_to_checkout = get_df("SELECT id, employee_id FROM attendance WHERE check_out IS NULL OR check_out = ''")
                 if not att_to_checkout.empty:
                     att_to_checkout['emp_name'] = att_to_checkout['employee_id'].map(emp_dict)
@@ -489,7 +575,6 @@ def run_main_app():
                             st.warning("Riwayat absensi dihapus!")
                             st.rerun()
 
-    # --- HALAMAN HPP -- -
     elif menu == "💰 HPP":
         st.header("Harga Pokok Penjualan (HPP) per Produk")
         prods_df = get_df("SELECT * FROM products")
@@ -505,7 +590,6 @@ def run_main_app():
 
 # =====================================================================
 # --- TITIK MASUK APLIKASI ---
-# Panggil fungsi check_login() untuk memulai aplikasi
 # =====================================================================
 if __name__ == "__main__":
     check_login()
